@@ -1,6 +1,9 @@
 package test;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -26,7 +29,7 @@ public class OCSPValidate {
     	    URI ocspServer = new URI ("http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp");
     	   
     	    // load the cert to be checked
-    	    certs.add(getCertFromFile("CITIZEN AUTHENTICATION CERTIFICATE"));
+    	    certs.add(getCert("CITIZEN AUTHENTICATION CERTIFICATE"));
     	    // handle location of OCSP server
     	    if (args.length == 2) {
     	        System.out.println("Using the OCSP server at: " + ocspServer.getPath().toString());
@@ -43,15 +46,15 @@ public class OCSPValidate {
     	    CertificateFactory cf = CertificateFactory.getInstance("X509");
     	    cp = (CertPath)cf.generateCertPath(certs);
     	    // load the root CA cert for the OCSP server cert
-    	    X509Certificate rootCACert = (X509Certificate) getCertFromFile("AUTHENTICATION SUB CA");
+    	    X509Certificate rootCACert = (X509Certificate) getCertFromFile("EC de Autenticacao do Cartao de Cidadao 0003.cer");
     	    // init trusted certs
     	    TrustAnchor ta = new TrustAnchor(rootCACert, null);
     	    Set trustedCertsSet = new HashSet();
     	    trustedCertsSet.add(ta);
     	    // init cert store
     	    Set certSet = new HashSet();
-    	   // X509Certificate ocspCert = getCertFromFile(OCSP_SERVER_CERT);
-    	    //certSet.add(ocspCert);
+    	    X509Certificate ocspCert = getCert("CITIZEN AUTHENTICATION CERTIFICATE");
+    	    certSet.add(ocspCert);
     	    CertStoreParameters storeParams = new CollectionCertStoreParameters(certSet);
     	    CertStore store = CertStore.getInstance("Collection", storeParams);
     	    // init PKIX parameters
@@ -66,6 +69,7 @@ public class OCSPValidate {
     	    }
     	    // perform validation
     	    CertPathValidator cpv = CertPathValidator.getInstance("PKIX");
+    	    System.out.println(cpv.getProvider());
     	    PKIXCertPathValidatorResult cpv_result  = (PKIXCertPathValidatorResult) cpv.validate(cp, params);
     	    X509Certificate trustedCert = (X509Certificate)	cpv_result.getTrustAnchor().getTrustedCert();
     	    if (trustedCert == null) {	   
@@ -88,19 +92,39 @@ public class OCSPValidate {
     	System.exit(0);
         }
     
-   private static Certificate getCertFromFile(String alias){
-    	Certificate cert = null;
-		KeyStore ks = loadPkcs11();
+   private static Certificate getCertFromFile(String path){
+	    X509Certificate  cert = null;
+	           try {
+	                 File certFile = new File(path);
+	                 
+	                 if (!certFile.canRead())
+	                     throw new IOException(" File " + certFile.toString() +
+	                 " is unreadable");
+	    
+	                 FileInputStream fis = new FileInputStream(path);
+	                 CertificateFactory cf = CertificateFactory.getInstance("X509");
+	                 cert = (X509Certificate)cf.generateCertificate(fis);
+	    
+	             } catch(Exception e) {
+	             System.out.println("Can't construct X509 Certificate. " +
+	             e.getMessage());
+	         }
+	             return cert;
 
-		try {
-			cert = ks.getCertificate(alias);
-		} catch (KeyStoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-    	return cert;
     }
+   
+   private static X509Certificate getCert(String alias){
+	    X509Certificate  cert = null;
+	           try {
+					KeyStore ks = loadPkcs11();
+					cert = (X509Certificate) ks.getCertificate(alias);
+	             } catch(Exception e) {
+	             System.out.println("Can't construct X509 Certificate. " +
+	             e.getMessage());
+	         }
+	             return cert;
+
+   }
    /**
     * Loads the keystore from the smart card using its PKCS#11
     * implementation library and the Sun PKCS#11 security provider.
