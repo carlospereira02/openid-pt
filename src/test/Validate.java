@@ -1,9 +1,7 @@
 package test;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -16,7 +14,6 @@ import java.security.Security;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
-import java.security.cert.CertPathValidatorResult;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -45,8 +42,9 @@ public class Validate {
 	    CertificateFactory cf = CertificateFactory.getInstance("X.509");
 		List mylist = new ArrayList();  
 	    URI ocspServer = new URI ("http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp");
-
-		String caFile = "Cartao de Cidadao 002.cer";
+	    String url = "http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp";
+		
+	    String caFile = "Cartao de Cidadao 002.cer";
         FileInputStream isCertCA = new FileInputStream(caFile);
         X509Certificate certCA = (X509Certificate)cf.generateCertificate(isCertCA);
 		
@@ -74,8 +72,9 @@ public class Validate {
 	    // enable OCSP
 	    Security.setProperty("ocsp.enable", "true");
 	    if (ocspServer != null) {
-		Security.setProperty("ocsp.responderURL", ocspServer.getPath());
-		Security.setProperty("ocsp.responderCertSubjectName","OCSP");
+	    	System.out.println("Verificando OCSP");
+		Security.setProperty("ocsp.responderURL",url );
+		//Security.setProperty("ocsp.responderCertSubjectName","OCSP");
 	    }
 	    
 	    CertPathValidator cpv = CertPathValidator.getInstance("PKIX");
