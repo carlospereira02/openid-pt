@@ -180,8 +180,17 @@ public class Reader {
 		    */
 
 		private static KeyStore loadPkcs11(){
-			final String pkcs11ConfigSettings ="name = SmartCard\n" + "library = /usr/local/lib/libpteidpkcs11.so";			
-		
+			String[] t = System.getProperty("os.name").split(" ");
+			System.out.println(t[0]);
+			System.out.println(System.getProperty("os.arch"));
+
+			String pkcs11ConfigSettings = null;
+			if (t[0].equals("Windows")){
+				 pkcs11ConfigSettings ="name = SmartCard\n" + "library = C:\\Windows\\SysWOW64\\pteidpkcs11.dll";			
+			}else {
+				 pkcs11ConfigSettings ="name = SmartCard\n" + "library = /usr/local/lib/libpteidpkcs11.so";			
+			}
+			
 			byte[] pkcs11configBytes = pkcs11ConfigSettings.getBytes();
 			ByteArrayInputStream configStream = new ByteArrayInputStream(pkcs11configBytes);
 			 
