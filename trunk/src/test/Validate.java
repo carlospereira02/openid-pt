@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -38,11 +39,13 @@ public class Validate {
 	 * @throws NoSuchAlgorithmException 
 	 * @throws InvalidAlgorithmParameterException 
 	 * @throws CertPathValidatorException 
+	 * @throws URISyntaxException 
 	 */
-	public static void main(String[] args) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidAlgorithmParameterException, CertPathValidatorException {
+	public static void main(String[] args) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidAlgorithmParameterException, CertPathValidatorException, URISyntaxException {
 	    CertificateFactory cf = CertificateFactory.getInstance("X.509");
 		List mylist = new ArrayList();  
-	 
+	    URI ocspServer = new URI ("http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp");
+
 		String caFile = "Cartao de Cidadao 002.cer";
         FileInputStream isCertCA = new FileInputStream(caFile);
         X509Certificate certCA = (X509Certificate)cf.generateCertificate(isCertCA);
@@ -67,9 +70,27 @@ public class Validate {
 	    TrustAnchor anchor = new TrustAnchor((X509Certificate) trust, null);
 	    PKIXParameters params = new PKIXParameters(Collections.singleton(anchor));
 	    params.setRevocationEnabled(false);
+	   
+	    // enable OCSP
+	    Security.setProperty("ocsp.enable", "true");
+	    if (ocspServer != null) {
+		Security.setProperty("ocsp.responderURL", ocspServer.getPath());
+		Security.setProperty("ocsp.responderCertSubjectName","OCSP");
+	    }
+	    
 	    CertPathValidator cpv = CertPathValidator.getInstance("PKIX");
+	    //System.out.println(cpv.getProvider());
+
 	    PKIXCertPathValidatorResult result = (PKIXCertPathValidatorResult) cpv.validate(cp, params);
-	    System.out.println(result);
+	    //System.out.println(result);
+	    
+	    X509Certificate trustedCert = (X509Certificate)	result.getTrustAnchor().getTrustedCert();
+	    if (trustedCert == null) {	  
+		System.out.println("Trsuted Cert = NULL");
+	    } else {
+		System.out.println("Trusted CA DN = " +
+		    trustedCert.getSubjectDN());
+	    }
 	    
 	}
 	
@@ -92,8 +113,17 @@ public class Validate {
     */
 
    private static KeyStore loadPkcs11(){
-	final String pkcs11ConfigSettings ="name = SmartCard\n" + "library = /usr/local/lib/libpteidpkcs11.so";			
+	   String[] t = System.getProperty("os.name").split(" ");
+		System.out.println(t[0]);
+		System.out.println(System.getProperty("os.arch"));
 
+		String pkcs11ConfigSettings = null;
+		if (t[0].equals("Windows")){
+			 pkcs11ConfigSettings ="name = SmartCard\n" + "library = C:\\Windows\\SysWOW64\\pteidpkcs11.dll";			
+		}else {
+			 pkcs11ConfigSettings ="name = SmartCard\n" + "library = /usr/local/lib/libpteidpkcs11.so";			
+		}
+		
 	byte[] pkcs11configBytes = pkcs11ConfigSettings.getBytes();
 	ByteArrayInputStream configStream = new ByteArrayInputStream(pkcs11configBytes);
 	 
