@@ -1,31 +1,53 @@
 package test;
 
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.BufferedInputStream.*;
+
 import java.math.BigInteger;
-import java.security.*;
-import java.security.cert.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.KeyStore;
+import java.security.Provider;
+import java.security.Security;
 import java.security.cert.Certificate;
-import java.util.*;
-import java.io.*;
-import java.net.*;
- 
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Enumeration;
+import java.util.Vector;
+
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess;
+import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.X509Extension;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.ocsp.BasicOCSPResp;
 import org.bouncycastle.ocsp.CertificateID;
-import org.bouncycastle.ocsp.CertificateStatus;
 import org.bouncycastle.ocsp.OCSPException;
 import org.bouncycastle.ocsp.OCSPReq;
 import org.bouncycastle.ocsp.OCSPReqGenerator;
 import org.bouncycastle.ocsp.OCSPResp;
 import org.bouncycastle.ocsp.SingleResp;
- 
 public class OCSPClient
 {
     public static OCSPReq generateOCSPRequest(X509Certificate issuerCert, BigInteger serialNumber) 
         throws OCSPException
     {
+    	    	
     	//Add provider BC
     	Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
  
@@ -50,17 +72,35 @@ public class OCSPClient
         return gen.generate();
     }
  
-    public static void main(
-        String[] args)
-        throws Exception
-    {	
- 
+    public static void main(String[] args)throws Exception  {	
+    	//URI OCSP
+    	String serviceAddr=null;
     	
     	//Read user Certificate
     	CertificateFactory cf = CertificateFactory.getInstance("X.509");
     	X509Certificate interCert = (X509Certificate)getCert("CITIZEN AUTHENTICATION CERTIFICATE");
-  
+    	//System.out.println(interCert);
+    	byte[] value =  interCert.getExtensionValue("1.3.6.1.5.5.7.1.1");
+       
+    	AuthorityInformationAccess authorityInformationAccess;
+        try {
+    	DEROctetString oct = (DEROctetString) (new ASN1InputStream(  new ByteArrayInputStream(value)).readObject());
+    	authorityInformationAccess = new AuthorityInformationAccess((ASN1Sequence) new ASN1InputStream(oct.getOctets()).readObject());
+        } catch (IOException e) {
+        	throw new RuntimeException("IO error: " + e.getMessage(), e);
+        }
     	
+        AccessDescription[] accessDescriptions = authorityInformationAccess.getAccessDescriptions();
+        for (AccessDescription accessDescription : accessDescriptions) {
+        	
+        	GeneralName gn = accessDescription.getAccessLocation();
+        	
+        	DERIA5String str = DERIA5String.getInstance(gn.getDERObject());
+        	String accessLocation = str.getString();
+        	serviceAddr = accessLocation;
+        	System.out.println("URI: "+accessLocation);
+        }
+
     	//Read CA Certificate
     	  String caFile = "Cartao de Cidadao 002.cer";
           FileInputStream isCertCA = new FileInputStream(caFile);
@@ -75,10 +115,7 @@ public class OCSPClient
  
         //Send request:
         //serviceAddr URL OCSP service
-        //String serviceAddr="http://ocsp.digsigtrust.com:80/";
-        //String serviceAddr="http://ocsp.verisign.com";
-        String serviceAddr="http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp";
-        
+
         String hostAddr="";
         if (serviceAddr != null) {
           hostAddr = serviceAddr;
@@ -105,6 +142,35 @@ public class OCSPClient
               
               //Get Response
               InputStream in = (InputStream) con.getContent();
+              System.out.println("-------------------------------------------");
+             
+              System.out.println("Contenttype:"+con.getContentType() );
+              System.out.println("Responsemessage:"+con.getResponseMessage() );
+              System.out.println("Contenencoding:"+con.getContentEncoding() );
+              System.out.println("headerFields:"+con.getHeaderFields() );
+             
+             // Object test =  new ASN1InputStream(in).readObject();
+              try
+              {
+              File f=new File("outFile.txt");
+              OutputStream saida=new FileOutputStream(f);
+              byte buf[]=new byte[1024];
+              int len;
+              while((len=in.read(buf))>0)
+              saida.write(buf,0,len);
+              saida.close();
+              in.close();
+              System.out.println("\nFile is created...................................");
+              }
+              catch (IOException e){}
+              
+              System.out.println("response:"+con.getResponseCode() );
+              System.out.println("response:");     
+              
+              
+              System.out.println("-------------------------------------------");
+            
+              
               OCSPResp ocspResponse = new OCSPResp(in);
               
               /**
@@ -195,4 +261,33 @@ public class OCSPClient
 		return ks;			 
 		
 		}
+	   
+	   
+	   public static String convertStreamToString(InputStream is) {
+		           /*
+		           * To convert the InputStream to String we use the BufferedReader.readLine()
+		            * method. We iterate until the BufferedReader return null which means
+		           * there's no more data to read. Each line will appended to a StringBuilder
+		            * and returned as String.
+		           */
+		          BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+		          StringBuilder sb = new StringBuilder();
+		   
+		          String line = null;
+		          try {
+		            while ((line = reader.readLine()) != null) {
+		                   sb.append(line + "\n");
+		              }
+		           } catch (IOException e) {
+		              e.printStackTrace();
+		          } finally {
+		              try {
+		                   is.close();
+		            } catch (IOException e) {
+		                   e.printStackTrace();
+		              }
+		           }
+		    
+		           return sb.toString();
+		       }
 }
