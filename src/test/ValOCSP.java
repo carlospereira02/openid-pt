@@ -27,7 +27,7 @@ public class ValOCSP {
             X509Certificate certSUBCA = (X509Certificate)cf.generateCertificate(isCert);
     		
             X509Certificate clientCert =(X509Certificate) getCert("CITIZEN AUTHENTICATION CERTIFICATE");
-
+            System.out.println(clientCert.getSerialNumber());
             List certList = new Vector();
            // NB: this is the correct sequence!!
             certList.add(clientCert);
