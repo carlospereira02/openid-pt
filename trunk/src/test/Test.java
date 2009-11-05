@@ -212,7 +212,7 @@ public class Test
 
 		byte[] challenge = pteid.CVC_Init_SM101();
 		byte[] signat = SignChallenge(challenge);
-		pteid.CVC_Authenticate();
+		//pteid.CVC_Authenticate();
 
 		PTEID_ADDR addr = pteid.CVC_GetAddr();
 		String country = addr.country;
