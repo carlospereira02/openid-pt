@@ -1,9 +1,14 @@
 package applet;
 
 import java.io.ByteArrayInputStream;
+import java.math.BigInteger;
 import java.security.KeyStore;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.Security;
+import java.security.Signature;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -32,7 +37,10 @@ public class Reader {
 	public String   cp4= null;
 	public String   cp3= null;
 	public String   municipality= null;
-		static
+	public String hash = null;	
+	byte[] signat = null;
+	
+	static
 		  {
 		    try
 		    {
@@ -44,8 +52,11 @@ public class Reader {
 		      System.exit(1);
 		    }
 		  }
-
-		  public void PrintIDData(PTEID_ID idData)
+			/**
+			 * Gets personal data info from CC Card
+			 * @param idData
+			 */
+		  private void PrintIDData(PTEID_ID idData)
 		  {
 		   name= idData.firstname+" "+idData.name;
 		   numNIF= idData.numNIF;
@@ -54,7 +65,11 @@ public class Reader {
 		   birthDate= idData.birthDate;
 		   
 		  }
-		  public void PrintADData(PTEID_ADDR adData)
+		  /**
+		   * Gets address data info from CC Card
+		   * @param adData
+		   */
+		  private void PrintADData(PTEID_ADDR adData)
 		  {
 		   street= adData.street;
 		   cp4= adData.cp4;
@@ -62,7 +77,10 @@ public class Reader {
 		   municipality= adData.municipalityDesc;
 		   streetType = adData.streettype;
 		  }
-		  public void GetcardType(int card){
+		  /**
+		   * returns CC card type
+		   */
+		  private void GetcardType(int card){
 			  switch (card)
 		   	  	{
 		   	  	case pteid.CARD_TYPE_IAS07:
@@ -79,11 +97,16 @@ public class Reader {
 		   	  }
 			  
 		  }
-		  
-		  public void setErrors(int error){
+		  /**
+		   * puts error info
+		   */
+		  private void setErrors(int error){
 			  errors = error;			  
 		  }
-		  public void printdata(){
+		  /**
+		   * prints user data, just for test
+		   */
+		  private void printdata(){
 			  System.out.println(name );
 			  System.out.println(numNIF); 
 			  System.out.println( numBI );
@@ -98,57 +121,9 @@ public class Reader {
 			 // System.out.println( ); 
 			  
 		  }
-		  public static void main(String[] args)
-		  {
-			  Reader card = new Reader();
-			    try
-			    {					
-	    	    	//check reader and card
-			    	pteid.Init("");			 
-			        pteid.SetSODChecking(false);
-			        int val = pteid.IsActivated();
-			    	
-			        if(val != 0){
-				        //read card type
-				    	int cardtype = pteid.GetCardType();	
-				    	card.GetcardType( cardtype);
-					   
-				    	// Read ID Data
-				    	PTEID_ID idData = pteid.GetID();
-						 if (null != idData)
-						    {
-							card.PrintIDData(idData);
-						    }
-						 
-						// Read ADDRESS Data
-					    	PTEID_ADDR adData = pteid.GetAddr();
-							 if (null != adData)
-							    {
-								card.PrintADData(adData);
-							    }
-						 
-						 //validate cert data
-					     card.getCert(card);
-					     card.verifyCert(card.numBI);
-					     card.printdata();
-			    	}else
-			    	{
-			    		card.valError = "Cartão não activado!";
-			    		
-			    	}
-			    } 
-			     catch(PteidException e)
-			     	{
-			           e.printStackTrace();
-			           String msg = e.getMessage();
-			           msg = msg.substring(14);
-			          //inform card error
-			           card.setErrors(Integer.parseInt(msg));
-			           
-			         }     
-			     System.out.println(card.valError);
-		  } 
-		
+			/**
+			 * compare numBI data from cert and cc card	 		 	
+			 */
 		  private void verifyCert(String numBI){
 			  if (serialCertBI.equals("BI"+numBI)){
 				  valError=valError+"BI E CERTIFICADO CONFEREM!!";				  
@@ -158,7 +133,24 @@ public class Reader {
 			  }
 			  
 		  }
-		  
+		  /**
+		   * Creates a hash from user data info CC card
+		   */
+		  public String hashPassword(String password) {
+			  String hashword = null;
+			  try {
+			  MessageDigest md5 = MessageDigest.getInstance("MD5");
+			  md5.update(password.getBytes());
+			  BigInteger hash = new BigInteger(1, md5.digest());
+			  hashword = hash.toString(16);
+			  } catch (NoSuchAlgorithmException nsae) {
+			  // ignore
+			  }
+			  return hashword;
+			  }
+		  /**
+		   * Get some data from user certificate
+		   */
 		  private void getCert(Reader card){
 			try {				
 				KeyStore ks = card.loadPkcs11();
@@ -195,13 +187,9 @@ public class Reader {
 
 		        while(it.hasNext())
 		        {
-		            // key=value separator this by Map.Entry to get key and value
 		            Map.Entry m =(Map.Entry)it.next();
-		            // getKey is used to get key of Map
 		            String key= (String) m.getKey();
-		            // getValue is used to get value of key in Map
 		            String value=(String)m.getValue();
-		            //System.out.println("Key :"+key+"  Value :"+value);
 		        }
 		        certserial = x509.getSerialNumber().toString();
 		        serialCertBI=tokens.get("SERIALNUMBER");
@@ -210,16 +198,8 @@ public class Reader {
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
-			   
-	
-			   
+			}   
 		  }
-		
-		  
-		  
-		  
-		  
 	  /**
 	    * Loads the keystore from the smart card using its PKCS#11
 	    * implementation library and the Sun PKCS#11 security provider.
@@ -227,8 +207,6 @@ public class Reader {
 	    */
 		private KeyStore loadPkcs11(){
 			String[] t = System.getProperty("os.name").split(" ");
-			//System.out.println(t[0]);
-			//System.out.println(System.getProperty("os.arch"));
 
 			String pkcs11ConfigSettings = null;
 			if (t[0].equals("Windows")){
@@ -244,24 +222,114 @@ public class Reader {
 			Security.addProvider(p);
 			KeyStore ks = null;
 			
-			try {
-			
+			try {			
 				ks = KeyStore.getInstance("PKCS11");				
-				ks.load(null,null);
-				 
-				//for (Enumeration e =  ks.aliases(); e.hasMoreElements( );)
-						//System.out.println("\t" + e.nextElement( ));
-				
+				ks.load(null,null);	
 				return ks;
 			} catch (Exception e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
-			}
-			
+				}			
 			return ks;			 
 			
 		}
-
-
+		/**
+		 * Sign user data
+		 * @param value
+		 * @param card
+		 */
+		public static void signature(String value, Reader card) {
+			  String data = value;
+			try {		
+				KeyStore ks = card.loadPkcs11();					
+				PrivateKey pk = (PrivateKey) ks.getKey("CITIZEN SIGNATURE CERTIFICATE", null);
+				
+				Signature s = Signature.getInstance("MD5withRSA");
+				s.initSign(pk);
+				
+				byte buf[] = data.getBytes();
+				s.update(buf);
+				
+				card.signat=(s.sign());
+			}
+			catch (Exception e) {
+				System.out.println(e);
+			}
+		}
+		
+		/**
+		 * Main
+		 * @param args
+		 */
+		 public static void main(String[] args)
+		  {
+			  Reader card = new Reader();
+			    try
+			    {					
+	    	    	//check reader and card
+			    	pteid.Init("");			 
+			        pteid.SetSODChecking(false);
+			        int val = pteid.IsActivated();
+			    	
+			        if(val != 0){
+				        //read card type
+				    	int cardtype = pteid.GetCardType();	
+				    	card.GetcardType( cardtype);
+					   
+				    	// Read ID Data
+				    	PTEID_ID idData = pteid.GetID();
+						 if (null != idData)
+						    {
+							card.PrintIDData(idData);
+						    }
+						 
+						// Read ADDRESS Data
+					    	PTEID_ADDR adData = pteid.GetAddr();
+							 if (null != adData)
+							    {
+								card.PrintADData(adData);
+							    }
+						 
+						 //validate cert data
+					     card.getCert(card);
+					     card.verifyCert(card.numBI);
+					     card.printdata();
+					     
+					     card.hash = card.hashPassword(					    		 
+					    		 card.name+
+					    		 card.numNIF+
+					    		 card.numBI+
+					    		 card.birthDate+
+					    		 card.certserial+
+					    		 card.errors+
+					    		 card.valError+
+					    		 card.cardType+
+					    		 card.serialCertBI+
+					    		 card.street+
+					    		 card.streetType+
+					    		 card.cp4+
+					    		 card.cp3+
+					    		 card.municipality
+					     );
+					     
+					     signature(card.hash, card);
+			    	}else
+			    	{
+			    		card.valError = "Cartão não activado!";
+			    		
+			    	}
+			    } 
+			     catch(PteidException e)
+			     	{
+			           e.printStackTrace();
+			           String msg = e.getMessage();
+			           msg = msg.substring(14);
+			          //inform card error
+			           card.setErrors(Integer.parseInt(msg));
+			           
+			         }  
+			     
+			     System.out.println("hash="+card.hash+card.valError);
+		  }
 		  
 }
