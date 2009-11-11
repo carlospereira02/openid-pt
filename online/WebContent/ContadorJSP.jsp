@@ -1,7 +1,29 @@
 <%@page contentType="text/html"%>
 <html>
 <head><title>JSP Page</title></head>
-<body>
+<script language="javascript">
+function runTest() {
+     document.getElementById("nome").value = document.getElementById("app").name;;
+     document.getElementById("data").value = document.getElementById("app").numBI;;
+     document.getElementById("sexo").value = document.getElementById("app").numNIF;;
+     document.getElementById("pais").value = document.getElementById("app").pais;;
+}
+</script> 
+
+
+<body >
+
+<applet id="app" archive="bigonlin.jar,pteidlibj.jar" code="applet.Reader" width="100" height="100">
+</applet>
+
+<FORM >
+<input type="button" onclick="runTest()">
+<input type="text" name="nome" id="nome">
+<input type="text" name="data" id="data">
+<input type="text" name="sexo" id="sexo">
+<input type="text" name="pais" id="pais">
+</FORM>
+
  
 <%
         Integer     count_o = (Integer) session.getAttribute("count");
