@@ -1,9 +1,7 @@
 package applet;
 
+import java.applet.Applet;
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
@@ -33,14 +31,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import javax.swing.JApplet;
 
 import pteidlib.PTEID_ADDR;
 import pteidlib.PTEID_ID;
 import pteidlib.PteidException;
 import pteidlib.pteid;
 
-public class Reader {
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+
+public class Reader extends Applet  {
 		
 	public String name = null;
 	public String numNIF = null;
@@ -365,10 +365,10 @@ public class Reader {
 		}
 		
 		/**
-		 * Main
+		 * init
 		 * @param args
 		 */
-		 public static void main(String[] args)
+		 public  void init()
 		  {
 			  Reader card = new Reader();
 			    try
