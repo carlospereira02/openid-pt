@@ -8,12 +8,20 @@ function runTest() {
      document.getElementById("sexo").value = document.getElementById("app").numNIF;;
      document.getElementById("pais").value = document.getElementById("app").pais;;
 }
+function teste(){
+	document.getElementById("app").stop();	
+	document.getElementById("app").destroy();	
+}
+function teste1(){
+	document.getElementById("app").init();	
+	document.getElementById("app").start();	
+}
 </script> 
 
 
 <body >
 
-<applet id="app" archive="bigonlin.jar,pteidlibj.jar" code="applet.Reader" width="100" height="100">
+<applet id="app" archive="bigonline.jar,pteidlibj.jar" code="applet.Simple" width="100" height="100">
 </applet>
 
 <FORM >
@@ -22,6 +30,8 @@ function runTest() {
 <input type="text" name="data" id="data">
 <input type="text" name="sexo" id="sexo">
 <input type="text" name="pais" id="pais">
+<input type="button" name="Reload" onclick="teste1()">
+<input type="button" name="Reload" onclick="teste()">
 </FORM>
 
  
