@@ -10,6 +10,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.security.*;
 import java.util.Enumeration;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
  
@@ -20,8 +21,18 @@ class ExportPriv {
     }
  
     public void doit() throws Exception{
-    	String configName = "/home/luis/workspace/big/src/CC_pkcs11.cfg";
-    	Provider p = new sun.security.pkcs11.SunPKCS11(configName);
+    	String[] t = System.getProperty("os.name").split(" ");
+
+    	String pkcs11ConfigSettings = null;
+    	if (t[0].equals("Windows")){
+    		 pkcs11ConfigSettings ="name = SmartCard\n" + "library = pteidpkcs11.dll";			
+    	}else {
+    		 pkcs11ConfigSettings ="name = SmartCard\n" + "library = /usr/local/lib/libpteidpkcs11.so";			
+    	}
+    	
+    	byte[] pkcs11configBytes = pkcs11ConfigSettings.getBytes();
+    	ByteArrayInputStream configStream = new ByteArrayInputStream(pkcs11configBytes);
+    	Provider p = new sun.security.pkcs11.SunPKCS11(configStream);
  	    Security.addProvider(p);
 
  	    KeyStore ks = KeyStore.getInstance("PKCS11");
@@ -46,10 +57,12 @@ class ExportPriv {
  			    
  			    if (certs[0] instanceof X509Certificate) {
  					X509Certificate x509 = (X509Certificate) certs[0];
- 					//PrivateKey pk = (PrivateKey) ks.getKey("CITIZEN SIGNATURE CERTIFICATE",null);
+ 					
+ 					
+ 				//	PublicKey pk1 = (PublicKey) ks.getKey("CITIZEN SIGNATURE CERTIFICATE",null).;
  					System.out.println("-----BEGIN PUBLIC KEY-----");
- 					//String b64 = myB64.encode(pk.getEncoded());
- 					//System.out.println(b64);
+ 					String b64 = myB64.encode(x509.getEncoded());
+ 					System.out.println(b64);
  					System.out.println("-----END PUBLIC KEY-----");
 
  					//System.out.println(alias + " is really " + x509.getTBSCertificate());

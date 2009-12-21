@@ -1,7 +1,6 @@
-package applet;
+
 
 import java.applet.Applet;
-import java.awt.Graphics;
 import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
@@ -32,23 +31,26 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
+import applet.Reader;
+
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 import pteidlib.PTEID_ADDR;
 import pteidlib.PTEID_ID;
 import pteidlib.PteidException;
 import pteidlib.pteid;
+import sun.misc.BASE64Encoder;
 
-//No need to extend JApplet, since we don't add any components;
-//we just paint.
-public class Simple extends Applet {
+
+public class Testar extends Applet {	
+	
+	BASE64Encoder myB64 = new BASE64Encoder();
 	public String name = null;
 	public String numNIF = null;
 	public String numBI = null;
 	public String birthDate = null;
 	public String certserial = null;
 	public int errors = 0;
-	public static String valError = "";
 	public String cardType = null;
 	public String serialCertBI = null;
 	public String   street= null;
@@ -57,17 +59,32 @@ public class Simple extends Applet {
 	public String   cp3= null;
 	public String   municipality= null;
 	public String hash = null;	
+	byte[] signat = null;
 	public String assinatura = "nada";
-	private static byte[] signat = null;
-    private final String TEST_RESPONDER_URL = "http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp";
-
-    StringBuffer buffer;
+	public String certSign = "";
+	public int activado = 0;
+	public static int cc = 0;
+    private static final String TEST_RESPONDER_URL = "http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp";
+    public String valError;
+	KeyStore keystore;
     
-    static
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	static
 	  {
 	    try
 	    {
-	      System.loadLibrary("pteidlibj");
+	
+	    	String osName = System.getProperty("os.name");
+	    	if(osName.equals("Linux"))
+	    		System.load("/usr/local/lib/libpteidlibj.so");
+	    	else
+	    		System.loadLibrary("pteidlibj");
+	    		System.out.println("Operating system version =>"+ osName);
+	    	cc = 1;
+	        
 	    }
 	    catch (UnsatisfiedLinkError e)
 	    {
@@ -75,7 +92,9 @@ public class Simple extends Applet {
 	      System.exit(1);
 	    }
 	  }
-    
+
+	
+	
 	/**
 	 * Gets personal data info from CC Card
 	 * @param idData
@@ -121,30 +140,7 @@ public class Simple extends Applet {
    	  }
 	  
   }
-  /**
-   * puts error info
-   */
-  private void setErrors(int error){
-	  errors = error;			  
-  }
-  /**
-   * prints user data, just for test
-   */
-  private void printdata(){
-	  System.out.println(name );
-	  System.out.println(numNIF); 
-	  System.out.println( numBI );
-	  System.out.println( birthDate);
-	  System.out.println( certserial); 
-	  System.out.println( errors );
-	  System.out.println( cardType );
-	  System.out.println( serialCertBI);
-	  System.out.println( streetType+" "+street);
-	  System.out.println( cp4+"-"+cp3+" "+municipality);
-	//  System.out.println( );
-	 // System.out.println( ); 
-	  
-  }
+  
 	/**
 	 * compare numBI data from cert and cc card	 		 	
 	 */
@@ -157,44 +153,13 @@ public class Simple extends Applet {
 	  }
 	  
   }
-  /**	public String name = null;
-	public String numNIF = null;
-	public String numBI = null;
-	public String birthDate = null;
-	public String certserial = null;
-	public int errors = 0;
-	public static String valError = "";
-	public String cardType = null;
-	public String serialCertBI = null;
-	public String   street= null;
-	public String   streetType= null;
-	public String   cp4= null;
-	public String   cp3= null;
-	public String   municipality= null;
-	public String hash = null;	
-	byte[] signat = null;
-    private static final String TEST_RESPONDER_URL = "http://ocsp.auc.teste.cartaodecidadao.pt/publico/ocsp";
-
-   * Creates a hash from user data info CC card
-   */
-  public String hashPassword(String password) {
-	  String hashword = null;
-	  try {
-	  MessageDigest md5 = MessageDigest.getInstance("MD5");
-	  md5.update(password.getBytes());
-	  BigInteger hash = new BigInteger(1, md5.digest());
-	  hashword = hash.toString(16);
-	  } catch (NoSuchAlgorithmException nsae) {
-	  // ignore
-	  }
-	  return hashword;
-	  }
+  
   /**
    * Get some data from user certificate
    */
   private void getCert(){
 	try {				
-		KeyStore ks = loadPkcs11();
+		KeyStore ks = keystore;
 		
 		java.security.cert.Certificate cert1 = ks.getCertificate("CITIZEN AUTHENTICATION CERTIFICATE");
 	
@@ -241,6 +206,22 @@ public class Simple extends Applet {
 		e.printStackTrace();
 	}   
   }
+  
+  /**
+   * Creates a hash from user data info CC card
+   */
+  public String hashPassword(String password) {
+	  String hashword = null;
+	  try {
+	  MessageDigest md5 = MessageDigest.getInstance("MD5");
+	  md5.update(password.getBytes());
+	  BigInteger hash = new BigInteger(1, md5.digest());
+	  hashword = hash.toString(16);
+	  } catch (NoSuchAlgorithmException nsae) {
+	  // ignore
+	  }
+	  return hashword;
+	  }
   /**
    * validateCertPath
    * @param certList
@@ -312,9 +293,13 @@ private KeyStore loadPkcs11(){
 	
 	byte[] pkcs11configBytes = pkcs11ConfigSettings.getBytes();
 	ByteArrayInputStream configStream = new ByteArrayInputStream(pkcs11configBytes);
-	 
-	final Provider p = new sun.security.pkcs11.SunPKCS11(configStream);
+	try {	 
+	Provider p = new sun.security.pkcs11.SunPKCS11(configStream);
 	Security.addProvider(p);
+	} catch (Exception e1) {
+		// TODO Auto-generated catch block
+		e1.printStackTrace();
+		}			
 	KeyStore ks = null;
 	
 	try {			
@@ -344,9 +329,16 @@ private void ocspval(){
             ByteArrayInputStream isCert = new ByteArrayInputStream(Base64.decode(certSUBCAtxt));
             X509Certificate certSUBCA = (X509Certificate)cf.generateCertificate(isCert);
             //System.out.println(certSUBCA.getSubjectDN());
-        	KeyStore ks = loadPkcs11();					
+        	KeyStore ks = keystore;					
 			java.security.cert.Certificate cert1 = ks.getCertificate("CITIZEN AUTHENTICATION CERTIFICATE");
 			X509Certificate clientCert = (X509Certificate) cert1;
+			
+			java.security.cert.Certificate cert2 = ks.getCertificate("CITIZEN SIGNATURE CERTIFICATE");
+			X509Certificate clientCert2 = (X509Certificate) cert2;
+			
+			certSign = myB64.encode(clientCert2.getPublicKey().getEncoded());
+			
+			
 			//System.out.println(clientCert.getSubjectDN());
 			// System.out.println("clientCert.getSerialNumber"+clientCert.getSerialNumber());
             List certList = new Vector();
@@ -365,10 +357,10 @@ private void ocspval(){
  * @param value
  * @param card
  */
-public void signature(String value) {
+public  void signature(String value) {
 	  String data = value;
 	try {		
-		KeyStore ks = loadPkcs11();					
+		KeyStore ks = keystore;					
 		PrivateKey pk = (PrivateKey) ks.getKey("CITIZEN SIGNATURE CERTIFICATE", null);
 		
 		Signature s = Signature.getInstance("MD5withRSA");
@@ -379,132 +371,169 @@ public void signature(String value) {
 		
 		signat=(s.sign());
 		assinatura = Base64.encode(signat);
+
 	}
 	catch (Exception e) {
 		System.out.println(e);
 	}
 }
 
-
-
-public void init() {
-    buffer = new StringBuffer();
-    addItem("initializing... ");
-    try
-    {					
-    	//check reader and card
-    	pteid.Init("");			 
-        pteid.SetSODChecking(false);
-        
-        }    
-    catch(PteidException e)
-    {
-    	e.printStackTrace();
-    	String msg = e.getMessage();
-    	msg = msg.substring(14);
-    	//inform card error
-    	setErrors(Integer.parseInt(msg));   
-    }  
-    
-}
-
-public void start() {
-    addItem("starting... ");
-    int val;
-	try {
-		val = pteid.IsActivated();
-		if(val != 0){
-	    	test();
-	    }else
-		{
-			valError = "Cartão não activado!";
-			
+  /**
+   * puts error info
+   */
+  private void setErrors(int error){
+	  errors = error;			  
+  }
+  /**
+   * prints user data, just for test
+   */
+  private void printdata(){
+	  System.out.println(name );
+	  System.out.println(numNIF); 
+	  System.out.println( numBI );
+	  System.out.println( birthDate);
+	  System.out.println( certserial); 
+	  System.out.println( errors );
+	  System.out.println( cardType );
+	  System.out.println( serialCertBI);
+	  System.out.println( streetType+" "+street);
+	  System.out.println( cp4+"-"+cp3+" "+municipality);
+	//  System.out.println( );
+	 // System.out.println( ); 
+	  
+  }
+	
+  	public int estado(){
+  		int val=0;
+  		try {
+		    val = pteid.IsActivated();
+		} catch (PteidException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
-	} catch (PteidException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	}
-    
-    System.out.println(valError);
-
-}
-
-public void stop() {
-    addItem("stopping... ");
-}
-
-public void destroy() {
-    addItem("preparing for unloading...");
-}
-
-private void addItem(String newWord) {
-    System.out.println(newWord);
-    buffer.append(newWord);
-    repaint();
-}
-
-private void test(){
-	  //read card type
-	int cardtype;
-	try {
-		cardtype = pteid.GetCardType();
-		GetcardType( cardtype);
-		   
-		// Read ID Data
-		PTEID_ID idData = pteid.GetID();
-		 if (null != idData)
-		    {
-			PrintIDData(idData);
-		    }
+		return val;
+  	}
+	/**
+	 * init - verifica se o cartão esta activado
+	 * @param args
+	 */
+	 public  void init()
+	  {
 		 
-		// Read ADDRESS Data
-		 PTEID_ADDR adData = pteid.GetAddr();
-			 if (null != adData)
-			    {
-				PrintADData(adData);
-			    }
-		
-		 //validate cert data
-	     getCert();
-	     verifyCert(numBI);
-	     printdata();
+		  try
+		    {		
+			  if (cc == 1){
+  	    	//check reader and card
+		    	pteid.Init("");			 
+		        pteid.SetSODChecking(false);
+		        int val = pteid.IsActivated();
+		        activado = val;		    	
+			  	}
+			 
+			  }
+		     catch(PteidException e)
+		     	{
+		           e.printStackTrace();
+		           String msg = e.getMessage();
+		           msg = msg.substring(14);
+		          //inform card error
+		           if(msg.isEmpty())
+		           {
+		        	   System.out.println(msg);
+		           }
+		        	   else
+		        		   setErrors(Integer.parseInt(msg));
+		           
+		         }  
+		   
+		     System.out.println(valError);
+	  }
+	 
+	 public void start(){
+		 if (cc == 1){
+	        if(activado != 0){
+	    		valError = "Cartão activado!";
+	    		keystore = loadPkcs11();
+	 		    getCert();
+	 		    ocspval();
+	    			    		
+	    	}else
+	    	{
+	    		valError = "Cartão não activado!";
+	       	}
+		 }else
+		 System.out.println("Não Existe cartão instalado");
+	 }
+	 
+	 public void dataTest(){
+	     System.out.println("dataTest");
 	     
-	     hash = hashPassword(					    		 
+	      //read card type
+	    	int cardtype;
+			try {
+				cardtype = pteid.GetCardType();
+				GetcardType( cardtype);
+			} catch (PteidException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+	    	
+		   
+	    	// Read ID Data
+	    	PTEID_ID idData;
+			try {
+				idData = pteid.GetID();	 
+				if (null != idData)
+			    {
+				PrintIDData(idData);
+			    }
+			} catch (PteidException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		
+			 
+			// Read ADDRESS Data
+			 PTEID_ADDR adData;
+			try {
+				adData = pteid.GetAddr();
+				if (null != adData)
+				    {
+					PrintADData(adData);
+				    }
+			} catch (PteidException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			 //validate cert data
+		     verifyCert(numBI);
+		     printdata();
+				 
+	 }
+	 
+	 public String fvalidate(){		 
+		 hash = hashPassword(					    		 
 	    		 name+
 	    		 numNIF+
-	    		 numBI+
+	    		numBI+
 	    		 birthDate+
-	    		 certserial+
-	    		 errors+
-	    		 valError+
-	    		cardType+
-	    		 serialCertBI+
+	    		 certserial+	    		
+	    		 cardType+
+	    		serialCertBI+
 	    		 street+
 	    		 streetType+
 	    		 cp4+
 	    		 cp3+
 	    		 municipality
 	     );
-	     ocspval();
+		 System.out.println("hash= "+hash);
 	     signature(hash);
-	} catch (PteidException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	}	
-	
-	stop();
-}   
-public void paint(Graphics g) {
-	
-		
-		g.drawRect(0, 0, 
-		getSize().width - 1,
-		getSize().height - 1);
-		//Draw the current string inside the rectangle.
-        g.drawString(buffer.toString(), 5, 15);
-	
-		   
-
-	}
+		 return hash;
+	 }
+	 
+	 public void stop(){
+		 System.out.println("STOP");
+	 }
 }
+
