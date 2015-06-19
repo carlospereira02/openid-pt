@@ -1,0 +1,1 @@
+This project is concerning with the creation of an extension to openID protocol in order to provide secure and strong authentication using smart cards.
